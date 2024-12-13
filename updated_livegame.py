@@ -63,7 +63,7 @@ class NFLGameTracker:
     def write_to_folders(self, content, content2=None):
         """Write content to specified folders"""
         content1 = None
-        folders = ["./texts/UID1000/", "./texts/UID1003/"]
+        folders = ["../../UID1000/", "../../UID1003/"]
         if '\n' in content:
             content1 = content.split('\n')[0]
             content2 = content.split('\n')[1]
