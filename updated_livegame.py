@@ -162,7 +162,7 @@ class NFLGameTracker:
         try:
             if 'scoringPlays' in game_data:
                 scplay = game_data['scoringPlays']
-                scflag = self.compareResponses(prev_scplay , scplay[0])
+                scflag = self.compare_responses(prev_scplay , scplay[0])
                 if scflag:
                     prev_scplay = scplay[0]
                     
