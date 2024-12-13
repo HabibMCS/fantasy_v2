@@ -9,7 +9,7 @@ from pregame_feed import PregameTextGenerator
 
 class NFLGameTracker:
     def __init__(self):
-        self.api_key = "b2497c1c7bmsh60f6b72e7d3d024p1bf8b1jsn5fb3791fc07d"
+        self.api_key = "fa1b0611e4mshe50b811ebe2d167p19cc57jsndc0bfbbbbed7"
         self.api_host = "tank01-nfl-live-in-game-real-time-statistics-nfl.p.rapidapi.com"
         
         # Dictionary of team names and their acronyms
