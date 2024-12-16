@@ -202,71 +202,71 @@ class NFLGameTracker:
             return None, None,scplay
 
     def run(self):
-        generator = PregameTextGenerator()
-        """Main running loop"""
-        prev_scplay=None
-        while True:
-            try:
-                # Fetch contest information
-                contest_info = self.fetch_contest_info()
-                if not contest_info:
-                    time.sleep(10)
-                    continue
-                contest_id = contest_info['contestid']
-                # Get current game data
-                game_data = self.fetch_api_data("getNFLBoxScore", {
-                    "gameID": contest_info['contestid'],
-                    "playByPlay": "true"
-                })
-
-                if not game_data:
-                    self.write_to_folders(
-                        f"| Match {contest_info['hometeam']} vs {contest_info['awayteam']} API SYSTEM ERROR |",
-                        "| API ERROR  API ERROR|"
-                    )
-                    time.sleep(10)
-                    continue
-                if "Game hasn't started" in game_data['error']:
-                # if game_data['gameStatus'] == "Not Started Yet":
-                    gdate = contest_info['contestid'].split('_')[0]
-                    formatted_date = f"{gdate[6:]}.{gdate[4:6]}.{gdate[:4]}"
-                    content = (f"{contest_info['hometeam']} vs {contest_info['awayteam']} | "
-                            f"{formatted_date} {contest_info['gametime']} EST | Not Started Yet")
-                    self.write_to_folders(content)
-                    time.sleep(10)
-                    generator.connect_to_database()
-                    pregame_texts = generator.process_game(match_id=contest_info['contestid'])
-                    for i in pregame_texts:
-                        self.write_to_folders(content=i)
-                        if contest_id != self.fetch_contest_info()['contestid']:
-                            break
+        try:
+            generator = PregameTextGenerator()
+            """Main running loop"""
+            prev_scplay=None
+            while True:
+                try:
+                    # Fetch contest information
+                    contest_info = self.fetch_contest_info()
+                    if not contest_info:
                         time.sleep(10)
-                    continue
-                    
-                elif game_data['gameStatus'] == "Completed" :
-                    home_score = game_data.get('homePts', '0')
-                    away_score = game_data.get('awayPts', '0')
-                    content = f"{game_data['home']} {home_score} vs {game_data['away']} {away_score} | Final"
-                    self.write_to_folders(content)
+                        continue
+                    contest_id = contest_info['contestid']
+                    # Get current game data
+                    game_data = self.fetch_api_data("getNFLBoxScore", {
+                        "gameID": contest_info['contestid'],
+                        "playByPlay": "true"
+                    })
 
-                else:  # Game in progress
-                    play_content, drive_content,prev_scplay= self.process_live_game(game_data,prev_scplay)
-                    if play_content:
-                        self.write_to_folders(play_content)
-                        if drive_content:
-                            time.sleep(5)
-                            self.write_to_folders(drive_content)
+                    if not game_data:
+                        self.write_to_folders(
+                            f"| Match {contest_info['hometeam']} vs {contest_info['awayteam']} API SYSTEM ERROR |",
+                            "| API ERROR  API ERROR|"
+                        )
+                        time.sleep(10)
+                        continue
+                    if "Game hasn't started" in game_data['error']:
+                    # if game_data['gameStatus'] == "Not Started Yet":
+                        gdate = contest_info['contestid'].split('_')[0]
+                        formatted_date = f"{gdate[6:]}.{gdate[4:6]}.{gdate[:4]}"
+                        content = (f"{contest_info['hometeam']} vs {contest_info['awayteam']} | "
+                                f"{formatted_date} {contest_info['gametime']} EST | Not Started Yet")
+                        self.write_to_folders(content)
+                        time.sleep(10)
+                        generator.connect_to_database()
+                        pregame_texts = generator.process_game(match_id=contest_info['contestid'])
+                        for i in pregame_texts:
+                            self.write_to_folders(content=i)
+                            if contest_id != self.fetch_contest_info()['contestid']:
+                                break
+                            time.sleep(10)
+                        continue
+                        
+                    elif game_data['gameStatus'] == "Completed" :
+                        home_score = game_data.get('homePts', '0')
+                        away_score = game_data.get('awayPts', '0')
+                        content = f"{game_data['home']} {home_score} vs {game_data['away']} {away_score} | Final"
+                        self.write_to_folders(content)
 
-                time.sleep(10)
+                    else:  # Game in progress
+                        play_content, drive_content,prev_scplay= self.process_live_game(game_data,prev_scplay)
+                        if play_content:
+                            self.write_to_folders(play_content)
+                            if drive_content:
+                                time.sleep(5)
+                                self.write_to_folders(drive_content)
 
-            except Exception as err:
-                print(f"Error in main loop: {err}")
-                time.sleep(5)
-            finally:
+                    time.sleep(10)
+
+                except Exception as err:
+                    print(f"Error in main loop: {err}")
+                    time.sleep(5)
+        finally:
                 if generator.db_connection:
                     generator.db_connection.close()
                     print("Database connection closed")
-                    break
 if __name__ == "__main__":
     tracker = NFLGameTracker()
     tracker.run()
