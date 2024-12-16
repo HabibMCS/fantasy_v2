@@ -1,7 +1,7 @@
 {
-    "match_id": "20241216_CHI@MIN",
-    "teams": {
-        "home": "MIN",
-        "away": "CHI"
-    }
+    "contestid": "20241208_CHI@SF",
+    "hometeam": "SF",
+    "awayteam": "CHI",
+    "pregamestats": 1,
+    "gametime": "4:25p"
 }

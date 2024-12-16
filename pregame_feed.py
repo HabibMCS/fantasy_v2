@@ -201,9 +201,9 @@ class PregameTextGenerator:
             print(f"Error fetching player names: {err}")
             return {}
 
-    def process_game(self, match_id):
+    def process_game(self, match_id,postgame=False):
         """Process game data and generate all pregame variations"""
-        if 1:
+        try:
             # Fetch game data
             params = {"sortBy":"standings","rosters":"false","topPerformers":"true","teamStats":"true","teamStatsSeason":"2024"}
             response = self.fetch_api_data("getNFLTeams",params=params)
@@ -280,12 +280,13 @@ class PregameTextGenerator:
             #         variation = f"4{chr(ord('A') + i - 7)}"
                 
             #     self.save_text_file(match_id, variation, content)
-
+            if postgame:
+                return pregame_texts[2:]
             return pregame_texts
 
-        # except Exception as err:
-        #     print(f"Error processing game {match_id}: {err}")
-        #     return None
+        except Exception as err:
+            print(f"Error processing game {match_id}: {err}")
+            return None
 # def process_game(self, match_id, variation_type=None):
 #     """Process game data with improved error handling"""
 #     try:

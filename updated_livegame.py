@@ -84,6 +84,7 @@ class NFLGameTracker:
         """Read contest information from JSON file"""
         try:
             with open("../../simpleapp/contest.json", "r") as file:
+            # with open("./config/contest.json", "r") as file:
                 data = json.load(file)
                 return {
                     "contestid": data.get("contestid"),
@@ -121,30 +122,69 @@ class NFLGameTracker:
         away_score = game_data.get('awayPts', '0')
         
         main_content = f"{home_team} {home_score} vs {away_team} {away_score} | Final"
+
+        home_quarters = game_data.get('lineScore', {}).get('home', {})
+        away_quarters = game_data.get('lineScore', {}).get('away', {})
         
-        # Get detailed box score for quarter information
-        box_score = self.fetch_api_data("getNFLBoxScore", {
-            "gameID": game_data['gameID'],
-            "playByPlay": "true"
-        })
+        home_detail = (f"hometeam {home_team} "
+                        f"{home_quarters.get('q1', '0')} | {home_quarters.get('q2', '0')} | "
+                        f"{home_quarters.get('q3', '0')} | {home_quarters.get('q4', '0')} | "
+                        f"{home_score}")
         
-        if box_score:
-            home_quarters = box_score.get('quarterDetails', {}).get('home', {})
-            away_quarters = box_score.get('quarterDetails', {}).get('away', {})
-            
-            home_detail = (f"hometeam {home_team} "
-                         f"{home_quarters.get('q1', '0')} | {home_quarters.get('q2', '0')} | "
-                         f"{home_quarters.get('q3', '0')} | {home_quarters.get('q4', '0')} | "
-                         f"{home_quarters.get('ot', '0')} | {home_score}")
-            
-            away_detail = (f"awayteam {away_team} "
-                         f"{away_quarters.get('q1', '0')} | {away_quarters.get('q2', '0')} | "
-                         f"{away_quarters.get('q3', '0')} | {away_quarters.get('q4', '0')} | "
-                         f"{away_quarters.get('ot', '0')} | {away_score}")
-            
-            return main_content, f"{home_detail}\n{away_detail}"
+        away_detail = (f"awayteam {away_team} "
+                        f"{away_quarters.get('q1', '0')} | {away_quarters.get('q2', '0')} | "
+                        f"{away_quarters.get('q3', '0')} | {away_quarters.get('q4', '0')} | "
+                        f" {away_score}")
         
-        return main_content, None
+        return main_content, home_detail,away_detail
+
+    def format_scoring_plays(self,game_data, homename, awayname):
+        """Format scoring plays into the specified two-line format"""
+        formatted_plays = []
+        
+        # Get scoring plays from game data
+        scoring_plays = game_data.get('scoringPlays', [])
+        
+        for play in scoring_plays:
+            # Format Line 1
+            line1 = (
+                f"{homename} {play['homeScore']} vs {awayname} {play['awayScore']} | "
+                f"{play['scoreTime']} - {play['scorePeriod']} | {play['scoreDetails']}"
+            )
+            
+            # Format Line 2
+            line2 = f"{play['scoreType']} - {play['score']}"
+            
+            # Add both lines as a tuple
+            formatted_plays.append((line1, line2))
+        
+        return formatted_plays
+
+    def get_postgame_feed(self,game_data):
+        """Get and format post game scoring feed"""
+        try:
+            if game_data:
+                # Extract team names from match_id (format: YYYYMMDD_AWAY@HOME)
+                away_team, home_team = game_data['away'],game_data['home']
+                
+                # Format scoring plays
+                formatted_plays = self.format_scoring_plays(game_data, home_team, away_team)
+                
+                # Create final output
+                all_plays = []
+                for play_num, (line1, line2) in enumerate(formatted_plays, 1):
+                    all_plays.extend([
+                        f"{line1}\n{line2}" 
+                    ])
+                
+                return all_plays
+                
+            return "No scoring data available"
+            
+        except Exception as err:
+            print(f"Error getting post game feed: {err}")
+            return "Error retrieving scoring data"
+
     def compare_responses(self,previous_response, new_response):
         # Convert both responses to strings for comparison
         import json
@@ -202,68 +242,93 @@ class NFLGameTracker:
             return None, None,scplay
 
     def run(self):
-        try:
-            generator = PregameTextGenerator()
-            """Main running loop"""
-            prev_scplay=None
-            while True:
-                try:
-                    # Fetch contest information
-                    contest_info = self.fetch_contest_info()
-                    if not contest_info:
-                        time.sleep(10)
-                        continue
-                    contest_id = contest_info['contestid']
-                    # Get current game data
-                    game_data = self.fetch_api_data("getNFLBoxScore", {
-                        "gameID": contest_info['contestid'],
-                        "playByPlay": "true"
-                    })
-
-                    if not game_data:
-                        self.write_to_folders(
-                            f"| Match {contest_info['hometeam']} vs {contest_info['awayteam']} API SYSTEM ERROR |",
-                            "| API ERROR  API ERROR|"
-                        )
-                        time.sleep(10)
-                        continue
-                    if "Game hasn't started" in game_data['error']:
-                    # if game_data['gameStatus'] == "Not Started Yet":
-                        gdate = contest_info['contestid'].split('_')[0]
-                        formatted_date = f"{gdate[6:]}.{gdate[4:6]}.{gdate[:4]}"
-                        content = (f"{contest_info['hometeam']} vs {contest_info['awayteam']} | "
-                                f"{formatted_date} {contest_info['gametime']} EST | Not Started Yet")
-                        self.write_to_folders(content)
-                        time.sleep(10)
-                        generator.connect_to_database()
-                        pregame_texts = generator.process_game(match_id=contest_info['contestid'])
-                        for i in pregame_texts:
-                            self.write_to_folders(content=i)
-                            if contest_id != self.fetch_contest_info()['contestid']:
-                                break
-                            time.sleep(10)
-                        continue
-                        
-                    elif game_data['gameStatus'] == "Completed" :
-                        home_score = game_data.get('homePts', '0')
-                        away_score = game_data.get('awayPts', '0')
-                        content = f"{game_data['home']} {home_score} vs {game_data['away']} {away_score} | Final"
-                        self.write_to_folders(content)
-
-                    else:  # Game in progress
-                        play_content, drive_content,prev_scplay= self.process_live_game(game_data,prev_scplay)
-                        if play_content:
-                            self.write_to_folders(play_content)
-                            if drive_content:
-                                time.sleep(5)
-                                self.write_to_folders(drive_content)
-
+        generator = PregameTextGenerator()
+        generator.connect_to_database()
+        """Main running loop"""
+        prev_scplay=None
+        while True:
+            try:
+                # Fetch contest information
+                contest_info = self.fetch_contest_info()
+                if not contest_info:
                     time.sleep(10)
+                    continue
+                contest_id = contest_info['contestid']
+                # Get current game data
+                game_data = self.fetch_api_data("getNFLBoxScore", {
+                    "gameID": contest_info['contestid'],
+                    "playByPlay": "true"
+                })
 
-                except Exception as err:
-                    print(f"Error in main loop: {err}")
-                    time.sleep(5)
-        finally:
+                if not game_data:
+                    self.write_to_folders(
+                        f"| Match {contest_info['hometeam']} vs {contest_info['awayteam']} API SYSTEM ERROR |",
+                        "| API ERROR  API ERROR|"
+                    )
+                    time.sleep(10)
+                    continue
+                pregmsg = game_data.get('error')
+                if pregmsg:
+                 if "Game hasn't started" in game_data['error']:
+                # if game_data['gameStatus'] == "Not Started Yet":
+                    gdate = contest_info['contestid'].split('_')[0]
+                    formatted_date = f"{gdate[6:]}.{gdate[4:6]}.{gdate[:4]}"
+                    content = (f"{contest_info['hometeam']} vs {contest_info['awayteam']} | "
+                            f"{formatted_date} {contest_info['gametime']} EST | Not Started Yet")
+                    self.write_to_folders(content)
+                    time.sleep(10)
+                    
+                    pregame_texts = generator.process_game(match_id=contest_info['contestid'])
+                    for i in pregame_texts:
+                        self.write_to_folders(content=i)
+                        if contest_id != self.fetch_contest_info()['contestid']:
+                            break
+                        time.sleep(10)
+                    continue
+                
+                elif game_data['gameStatus'] == "Completed" :
+                    main_content, home_content,away_content =self.process_final_game(game_data=game_data)
+                    self.write_to_folders(f"{main_content}\n{home_content}")
+                    if contest_id != self.fetch_contest_info()['contestid']:
+                                continue
+                    time.sleep(10)
+                    self.write_to_folders(f"{main_content}\n{away_content}")
+                    if contest_id != self.fetch_contest_info()['contestid']:
+                        continue
+                    time.sleep(10)
+                    postplays = self.get_postgame_feed(game_data=game_data)
+                    breakflag = False
+                    for i in postplays:
+                        self.write_to_folders(content=i)
+                        if contest_id != self.fetch_contest_info()['contestid']:
+                            breakflag = True
+                            break
+                        time.sleep(10)
+                    if breakflag:
+                        continue
+                    pregame_texts = generator.process_game(match_id=contest_info['contestid'],postgame=True)
+                    for i in pregame_texts:
+                        self.write_to_folders(content=i)
+                        if contest_id != self.fetch_contest_info()['contestid']:
+                            break
+                        time.sleep(10)
+                    continue
+
+
+                else:  # Game in progress
+                    play_content, drive_content,prev_scplay= self.process_live_game(game_data,prev_scplay)
+                    if play_content:
+                        self.write_to_folders(play_content)
+                        if drive_content:
+                            time.sleep(5)
+                            self.write_to_folders(drive_content)
+
+                time.sleep(10)
+
+            except Exception as err:
+                print(f"Error in main loop: {err}")
+                time.sleep(5)
+            finally:
                 if generator.db_connection:
                     generator.db_connection.close()
                     print("Database connection closed")
