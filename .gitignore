@@ -2,3 +2,6 @@ texts/
 .env
 nflscrapper/
 __pycache__
+debugs.json
+failed_players.txt
+test.json

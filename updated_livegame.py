@@ -44,7 +44,7 @@ class NFLGameTracker:
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
             data = response.json()
-            
+            print(data)
             if data.get('statusCode') != 200:
                 print(f"API Error ({endpoint}): Status {data.get('statusCode')}")
                 return None
@@ -63,19 +63,19 @@ class NFLGameTracker:
     def write_to_folders(self, content, content2=None):
         """Write content to specified folders"""
         content1 = None
-        folders = ["../../UID1000/", "../../UID1003/"]
-        if '\n' in content:
-            content1 = content.split('\n')[0]
-            content2 = content.split('\n')[1]
+        folders = ["./texts/UID1000/", "../texts/UID1003/"]
+        # if '\n' in content:
+        #     content1 = content.split('\n')[0]
+        #     content2 = content.split('\n')[1]
         for folder in folders:
             os.makedirs(folder, exist_ok=True)
             guid = str(uuid.uuid4())
             file_path = os.path.join(folder, f"UNSENT_MESSAGE{guid}.txt")
-            if not content1:
-                final_content = content if content2 is None else f"{content}\n{content2}"
+            if not content2:
+                final_content = content
                 with open(file_path, 'w') as file:
                     file.write(final_content)
-            if content1:
+            if content2:
                 final_content =  f"{content1}\n{content2}"
                 with open(file_path, 'w') as file:
                     file.write(final_content)
@@ -89,7 +89,8 @@ class NFLGameTracker:
                     "contestid": data.get("contestid"),
                     "hometeam": data.get("hometeam"),
                     "awayteam": data.get("awayteam"),
-                    "pregamestats": int(data.get("pregamestats", 0))
+                    "pregamestats": int(data.get("pregamestats", 0)),
+                    "gametime":data.get("gametime")
                 }
         except Exception as err:
             print(f"Error reading contest file: {err}")
@@ -201,6 +202,7 @@ class NFLGameTracker:
             return None, None,scplay
 
     def run(self):
+        generator = PregameTextGenerator()
         """Main running loop"""
         prev_scplay=None
         while True:
@@ -219,20 +221,26 @@ class NFLGameTracker:
 
                 if not game_data:
                     self.write_to_folders(
-                        f"| Match {contest_info['hometeam']} vs {contest_info['awayteam']} Not Found |",
-                        "| Try Different Team with available upcoming matches |"
+                        f"| Match {contest_info['hometeam']} vs {contest_info['awayteam']} API SYSTEM ERROR |",
+                        "| API ERROR  API ERROR|"
                     )
                     time.sleep(10)
                     continue
-
-                if game_data['gameStatus'] == "Not Started Yet":
-                    gdate = game_data['gameID'].split('_')[0]
+                if "Game hasn't started" in game_data['error']:
+                # if game_data['gameStatus'] == "Not Started Yet":
+                    gdate = contest_info['contestid'].split('_')[0]
                     formatted_date = f"{gdate[6:]}.{gdate[4:6]}.{gdate[:4]}"
-                    content = (f"{game_data['home']} vs {game_data['away']} | "
-                            f"{formatted_date} {game_data['gameTime']} EST | {game_data['gameStatus']}")
+                    content = (f"{contest_info['hometeam']} vs {contest_info['awayteam']} | "
+                            f"{formatted_date} {contest_info['gametime']} EST | Not Started Yet")
                     self.write_to_folders(content)
+                    time.sleep(10)
+                    generator.connect_to_database()
+                    pregame_texts = generator.process_game(match_id=contest_info['contestid'])
+                    for i in pregame_texts:
+                        self.write_to_folders(content=i)
+                        time.sleep(10)
                     
-                elif game_data['gameStatus'] == "Final":
+                elif game_data['gameStatus'] == "Completed" :
                     home_score = game_data.get('homePts', '0')
                     away_score = game_data.get('awayPts', '0')
                     content = f"{game_data['home']} {home_score} vs {game_data['away']} {away_score} | Final"
@@ -251,6 +259,11 @@ class NFLGameTracker:
             except Exception as err:
                 print(f"Error in main loop: {err}")
                 time.sleep(5)
+            finally:
+                if generator.db_connection:
+                    generator.db_connection.close()
+                    print("Database connection closed")
+                    break
 if __name__ == "__main__":
     tracker = NFLGameTracker()
     tracker.run()
