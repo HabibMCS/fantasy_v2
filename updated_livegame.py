@@ -83,7 +83,7 @@ class NFLGameTracker:
     def fetch_contest_info(self):
         """Read contest information from JSON file"""
         try:
-            with open("./config/contest.json", "r") as file:
+            with open("../../simpleapp/contest.json", "r") as file:
                 data = json.load(file)
                 return {
                     "contestid": data.get("contestid"),
@@ -212,7 +212,7 @@ class NFLGameTracker:
                 if not contest_info:
                     time.sleep(10)
                     continue
-
+                contest_id = contest_info['contestid']
                 # Get current game data
                 game_data = self.fetch_api_data("getNFLBoxScore", {
                     "gameID": contest_info['contestid'],
@@ -238,7 +238,10 @@ class NFLGameTracker:
                     pregame_texts = generator.process_game(match_id=contest_info['contestid'])
                     for i in pregame_texts:
                         self.write_to_folders(content=i)
+                        if contest_id != self.fetch_contest_info()['contestid']:
+                            break
                         time.sleep(10)
+                    continue
                     
                 elif game_data['gameStatus'] == "Completed" :
                     home_score = game_data.get('homePts', '0')
