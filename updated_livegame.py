@@ -327,11 +327,11 @@ class NFLGameTracker:
 
             except Exception as err:
                 print(f"Error in main loop: {err}")
-                time.sleep(5)
-            finally:
                 if generator.db_connection:
                     generator.db_connection.close()
                     print("Database connection closed")
+                time.sleep(5)
+               
 if __name__ == "__main__":
     tracker = NFLGameTracker()
     tracker.run()
