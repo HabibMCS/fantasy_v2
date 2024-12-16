@@ -44,7 +44,7 @@ class NFLGameTracker:
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
             data = response.json()
-            print(data)
+            # print(data)
             if data.get('statusCode') != 200:
                 print(f"API Error ({endpoint}): Status {data.get('statusCode')}")
                 return None
