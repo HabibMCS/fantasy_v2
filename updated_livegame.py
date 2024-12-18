@@ -259,7 +259,9 @@ class NFLGameTracker:
                     "gameID": contest_info['contestid'],
                     "playByPlay": "true"
                 })
-
+                print(game_data['error'])
+                import sys
+                sys.exit(1)
                 if not game_data:
                     self.write_to_folders(
                         f"| Match {contest_info['hometeam']} vs {contest_info['awayteam']} API SYSTEM ERROR |",
