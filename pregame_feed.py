@@ -119,8 +119,8 @@ class PregameTextGenerator:
             passing = team_data['Passing']
             return (
                 f"{team_abv} | "
-                f"Pass: {passing['passYds']['total']} YDs, {passing['passTD']['total']} TD | "
-                f"INT: {passing['int']['total']}"
+                f" Pass: {passing['passYds']['total']} YDs, {passing['passTD']['total']} TD | "
+                f" INT: {passing['int']['total']}"
             )
         except Exception as err:
             print(f"Error formatting team stats for {team_abv}: {err}")
@@ -204,20 +204,15 @@ class PregameTextGenerator:
     def process_game(self, match_id,postgame=False):
         """Process game data and generate all pregame variations"""
         try:
-            # Fetch game data
-            params = {"sortBy":"standings","rosters":"false","topPerformers":"true","teamStats":"true","teamStatsSeason":"2024"}
-            response = self.fetch_api_data("getNFLTeams",params=params)
+            params = {"sortBy":"standings","rosters":"false","topPerformers":"true","teamStats":"true","teamStatsSeason":"2024"} if postgame else {f"gameDate":{match_id.split("_")[0]},"topPerformers":"true"}
+            response = self.fetch_api_data("getNFLTeams",params=params) if postgame else self.fetch_api_data("getNFLScoresOnly",params=params)
             if not response or 'body' not in response:
                 print("No teams data received")
                 return None
-
-            # Get team data
             teams_data = response['body']
             if not teams_data:
                 print("No teams data found")
                 return None
-
-            # Extract required data
             game_info = {
                 'gameID': match_id,
                 'home': match_id.split('_')[1].split('@')[0],
@@ -225,16 +220,11 @@ class PregameTextGenerator:
                 'gametime': "8:20 PM",  # You might want to get this from another API
                 'gameStatus': "Scheduled"
             }
-
-            # Get home and away team data
             home_team = next((team for team in teams_data if team['teamAbv'] == game_info['home']), None)
             away_team = next((team for team in teams_data if team['teamAbv'] == game_info['away']), None)
-
             if not home_team or not away_team:
                 print(f"Could not find data for teams: {game_info['home']} or {game_info['away']}")
                 return None
-
-            # Collect all player IDs for name lookup
             player_ids = []
             for team in [home_team, away_team]:
                 for stat_type in team['topPerformers'].values():
@@ -243,11 +233,9 @@ class PregameTextGenerator:
                             player_ids.extend(stat['playerID'])
             
             
-            # Get player names
             player_names = self.get_player_names(player_ids)
             # Generate all pregame texts
             pregame_texts = []
-
             # Pregame 1 - Basic game info
            # pregame_1 = self.generate_pregame_1(game_info)
            # pregame_texts.append(pregame_1)
@@ -257,12 +245,10 @@ class PregameTextGenerator:
             away_pregame_2 = self.generate_pregame_2(away_team)
             pregame_texts.extend([home_pregame_2, away_pregame_2])
 
-            # Pregame 3 - Home team stats (A-D)
             for stat_type in ['A', 'B', 'C', 'D']:
                 stat = self.generate_performance_stats(home_team, player_names, stat_type)
                 pregame_texts.append(stat)
 
-            # Pregame 4 - Away team stats (A-D)
             for stat_type in ['A', 'B', 'C', 'D']:
                 stat = self.generate_performance_stats(away_team, player_names, stat_type)
                 pregame_texts.append(stat)
