@@ -259,9 +259,7 @@ class NFLGameTracker:
                     "gameID": contest_info['contestid'],
                     "playByPlay": "true"
                 })
-                print(game_data['error'])
-                import sys
-                sys.exit(1)
+
                 if not game_data:
                     self.write_to_folders(
                         f"| Match {contest_info['hometeam']} vs {contest_info['awayteam']} API SYSTEM ERROR |",
@@ -269,9 +267,9 @@ class NFLGameTracker:
                     )
                     time.sleep(10)
                     continue
-                pregmsg = game_data.get('error')
-                if pregmsg:
-                 if "Game hasn't started" in game_data['error']:
+                # pregmsg = game_data.get('error')
+                # if pregmsg:
+                if "Game hasn't started" in game_data['error']:
                 # if game_data['gameStatus'] == "Not Started Yet":
                     gdate = contest_info['contestid'].split('_')[0]
                     formatted_date = f"{gdate[6:]}.{gdate[4:6]}.{gdate[:4]}"
