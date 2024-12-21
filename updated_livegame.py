@@ -269,7 +269,7 @@ class NFLGameTracker:
                     continue
                 # pregmsg = game_data.get('error')
                 # if pregmsg:
-                if "Game hasn't started" in game_data['error']:
+                if 'error' in game_data:
                 # if game_data['gameStatus'] == "Not Started Yet":
                     gdate = contest_info['contestid'].split('_')[0]
                     formatted_date = f"{gdate[6:]}.{gdate[4:6]}.{gdate[:4]}"
