@@ -204,8 +204,8 @@ class PregameTextGenerator:
     def process_game(self, match_id,postgame=False):
         """Process game data and generate all pregame variations"""
         try:
-            params = {"sortBy":"standings","rosters":"false","topPerformers":"true","teamStats":"true","teamStatsSeason":"2024"} if postgame else {f"gameDate":{match_id.split("_")[0]},"topPerformers":"true"}
-            response = self.fetch_api_data("getNFLTeams",params=params) if postgame else self.fetch_api_data("getNFLScoresOnly",params=params)
+            params = {"sortBy":"standings","rosters":"false","topPerformers":"true","teamStats":"true","teamStatsSeason":"2024"} if not postgame else {f"gameDate":{match_id.split("_")[0]},"topPerformers":"true"}
+            response = self.fetch_api_data("getNFLTeams",params=params) if not postgame else self.fetch_api_data("getNFLScoresOnly",params=params)
             if not response or 'body' not in response:
                 print("No teams data received")
                 return None
